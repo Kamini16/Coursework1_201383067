@@ -1,0 +1,95 @@
+---
+title: "Pneumonia and influenza deaths in the U.S."
+subtitle: " Between 1968 to 1978."
+author:
+- name: "Kamini Lala"
+date: "18 March 2024"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r, echo=FALSE}
+htmltools::img(src = knitr::image_uri("QMlogo.png"), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:30%;')
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+The time series `flu` contains data of the monthly pneumonia and influenza deaths per 10,000 people in the United States for 11 years, 1968 to 1978. In this project I will analyse the data and try to predict what the deaths will be in the future. For the forecasting I will be using Meta's forecasting system `prophet`.
+
+Below are all the libraries that I have used in this project.
+
+```{r}
+library(astsa)
+library(prophet)
+library(signal)
+library(zoo)
+```
+
+As `flu` is a time series, I need to make it into a data frame in order to use it for analysis. The first few sets of data is shown in order to make sure that the structure of the data frame is correct.
+
+```{r}
+flu.df = data.frame(ds=zoo::as.yearmon(time(flu)),y=flu)
+head(flu.df)
+```
+
+Here I have decomposed the data so that it is easy to see if there is any trend and seasonality. When we decompose the time series we can see that there is a yearly seasonality. Around December to March of each year the deaths are higher. This could be because it is winter during this time of the year. In addition to this, from the trend we can see that the number of deaths are decreasing each year.
+
+```{r}
+decomposition = decompose(flu)
+decomposition$seasonal
+decomposition$trend
+decomposition$random
+plot(decomposition)
+```
+
+Here is a plot of the data only.
+
+```{r}
+plot(flu)
+```
+
+When we look at the summary, we can see that the highest monthly death per 10,000 people in the US was 0.8193 and the lowest was 0.1798. On average, there were 0.2919 deaths per 10,000 every month.
+
+```{r}
+summary(flu)
+```
+
+Meta's forecaster `prophet` can be used to calculate what the monthly pneumonia and influenza deaths were in the US after 1978. Here I am finding for the next 6 years. To do this I create a variable which contains the dates that I want to forecast for. I have decided to forecast monthly.
+
+```{r}
+prophet.forecaster = prophet::prophet(flu.df)
+future.forecasting.dates = prophet::make_future_dataframe(prophet.forecaster,periods =72, freq = "month")
+```
+
+I use `predict` to predict what the death is likely going to be and then I store it in the variable `prediction`. Then I have plotted the future values. 
+
+```{r}
+prediction = predict(prophet.forecaster,future.forecasting.dates)
+plot(prophet.forecaster,prediction)
+```
+
+
+This forecasting is not good in a long term as after a few years it will predict values which are not possible. For example around 1997 the prediction for the number of deaths by pneumonia and influenza in the US has started taking negative value. However, it is impossible to have negative deaths. Therefore, I use this data to predict the deaths for after 2024, it will give me unrealistic values. From 2031 the prediction contains all negative values.
+
+```{r}
+future.forecasting.dates = prophet::make_future_dataframe(prophet.forecaster,periods =660, freq = "month")
+prediction = predict(prophet.forecaster,future.forecasting.dates)
+plot(prophet.forecaster,prediction)
+```
+
+If we try to predict the yearly data we can see that it is not really that informative because it is taking the mean of all the months. This makes it harder to see seasonality.
+
+```{r}
+future.forecasting.dates = prophet::make_future_dataframe(prophet.forecaster,periods =10, freq = "year")
+prediction = predict(prophet.forecaster,future.forecasting.dates)
+plot(prophet.forecaster,prediction)
+```
+
+To conclude, for this data it is hard to predict future values as it will give unrealistic numbers.
